@@ -1,132 +1,112 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { Container, Button, Typography, Stack } from "@mui/material";
+import "video.js/dist/video-js.css";
+import {
+  Container,
+  Button,
+  Typography,
+  Stack,
+  CircularProgress,
+  Card,
+} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
+import VideoPlayer from "./components/VideoPlayer";
 
-const BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+const BASE_URL = import.meta.env.VITE_BASE_URL || "http://192.168.1.104:3001";
 
 function App() {
   const [status, setStatus] = useState<
     "unknown" | "capturing" | "stopped" | "error"
   >("unknown");
-  const [imageUrl, setImageUrl] = useState(
-    `${BASE_URL}/image?timestamp=${Date.now()}`
-  );
   const [apiConnected, setApiConnected] = useState(true);
-
-  // Keep track of previous API status
-  const prevApiConnected = useRef<boolean>(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     checkStatus();
-
-    const imageInterval = setInterval(() => {
-      setImageUrl(`${BASE_URL}/image?timestamp=${Date.now()}`);
-    }, 3000);
-
-    const statusInterval = setInterval(checkStatus, 3000);
-
-    return () => {
-      clearInterval(imageInterval);
-      clearInterval(statusInterval);
-    };
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkStatus = async () => {
     try {
       const res = await axios.get(`${BASE_URL}/status`);
-      const newStatus = res.data.status;
-
-      if (!prevApiConnected.current) {
-        toast.success("✅ API Reconnected!");
-      }
-
-      prevApiConnected.current = true;
+      setStatus(res.data.status);
+      if (!apiConnected) toast.success("✅ API Reconnected!");
       setApiConnected(true);
-      setStatus(newStatus);
     } catch (error) {
       console.error("Error fetching status:", error);
-
-      if (prevApiConnected.current) {
-        toast.error("❌ API Disconnected!");
-      }
-
-      prevApiConnected.current = false;
+      if (apiConnected) toast.error("❌ API Disconnected!");
       setApiConnected(false);
       setStatus("error");
     }
   };
 
   const handleStart = async () => {
-    toast.promise(
-      axios.post(`${BASE_URL}/start`).then(() => {
-        setStatus("capturing");
-      }),
-      {
-        loading: "Starting capture...",
-        success: "✅ Capture started!",
-        error: "❌ Failed to start capture.",
-      }
-    );
+    setLoading(true);
+    toast
+      .promise(
+        axios.post(`${BASE_URL}/start`).then(() => setStatus("capturing")),
+        {
+          loading: "Starting capture...",
+          success: "✅ Capture started!",
+          error: "❌ Failed to start capture.",
+        }
+      )
+      .finally(() => setLoading(false));
   };
 
   const handleStop = async () => {
-    toast.promise(
-      axios.post(`${BASE_URL}/stop`).then(() => {
-        setStatus("stopped");
-      }),
-      {
-        loading: "Stopping capture...",
-        success: "🛑 Capture stopped!",
-        error: "❌ Failed to stop capture.",
-      }
-    );
+    setLoading(true);
+    toast
+      .promise(
+        axios.post(`${BASE_URL}/stop`).then(() => setStatus("stopped")),
+        {
+          loading: "Stopping capture...",
+          success: "🛑 Capture stopped!",
+          error: "❌ Failed to stop capture.",
+        }
+      )
+      .finally(() => setLoading(false));
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 4 }}>
+    <Container maxWidth="md" sx={{ mt: 4, textAlign: "center" }}>
       <Toaster position="top-right" />
       <Typography variant="h4" gutterBottom>
-        Image Capture Dashboard
+        🎥 Pi Stream Dashboard
       </Typography>
 
-      <Typography
-        variant="body1"
-        sx={{ mb: 2, color: apiConnected ? "inherit" : "red" }}
-      >
-        Current Status: <strong>{status}</strong>
-      </Typography>
+      <Card sx={{ mb: 3, p: 2, background: "#f5f5f5", textAlign: "center" }}>
+        <Typography
+          variant="body1"
+          sx={{ fontWeight: "bold", color: apiConnected ? "green" : "red" }}
+        >
+          Current Status: {loading ? "Loading..." : <strong>{status}</strong>}
+        </Typography>
+        {loading && <CircularProgress size={30} />}
+      </Card>
 
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+      <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
         <Button
           variant="contained"
           color="primary"
           onClick={handleStart}
-          disabled={!apiConnected || status === "capturing"}
+          disabled={!apiConnected || status === "capturing" || loading}
         >
-          Start Capture
+          Start Stream
         </Button>
         <Button
           variant="contained"
           color="error"
           onClick={handleStop}
-          disabled={!apiConnected || status === "stopped"}
+          disabled={!apiConnected || status === "stopped" || loading}
         >
-          Stop Capture
+          Stop Stream
         </Button>
       </Stack>
 
-      {/* Show the latest image if capturing */}
-      {status === "capturing" && (
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt="Latest Capture"
-          width="640"
-          height="360"
-          style={{ border: "1px solid #ccc", background: "black" }}
-        />
-      )}
+      {/* ✅ Video.js Player */}
+      <VideoPlayer />
     </Container>
   );
 }
