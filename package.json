@@ -15,9 +15,12 @@
     "@mui/material": "^6.4.5",
     "axios": "^1.7.9",
     "hls.js": "^1.5.20",
+    "plyr": "^3.7.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hot-toast": "^2.5.2"
+    "react-hot-toast": "^2.5.2",
+    "shaka-player": "^4.13.3",
+    "video.js": "^8.21.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
